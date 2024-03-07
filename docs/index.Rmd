@@ -1,0 +1,141 @@
+---
+title: "Hypothesis Testing Project"
+author: "Benard Omido"
+date: "2024-03-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+## Objective
+
+The Objective of this project is to determine whether more goals are scored in women's international matches than men's using FIFA data sets.
+
+```{r}
+library(tidyverse)
+library(gridExtra)
+```
+
+Import the datasets
+
+```{r}
+men_df <- read_csv("men_results.csv")
+glimpse(men_df)
+```
+
+```{r}
+women_df <- read_csv("women_results.csv")
+glimpse(women_df)
+```
+
+Filter the data sets to only include FIFA World Cup Matches since 2002-01-01
+
+```{r}
+men <- men_df %>% 
+  filter(tournament == "FIFA World Cup", date > "2002-01-01") %>% 
+  mutate(total_goals = home_score + away_score)
+
+head(men)
+```
+
+```{r}
+women <- women_df %>% 
+  filter(tournament == "FIFA World Cup", date > "2002-01-01") %>% 
+  mutate(total_goals = home_score + away_score)
+
+head(women)
+```
+
+#### *Research Question*
+- Are more goals scored in women's international matches than men's?
+- Use a 90% significance level
+
+**Hypothesis**
+
+HO - The mean number of goals scored in women's international soccer matches is the same as men's
+
+H1 - The mean number of goals scored in women's international soccer matches is greater than men's
+
+Checking Normality
+
+```{r}
+#Using a histogram with a density line
+#For men
+
+mens_plot <- ggplot(men, aes(total_goals)) +
+  geom_histogram(aes(y = ..density..), bins = 30) + 
+  stat_function(fun = dnorm, color = "blue",
+                args = list(mean = mean(men$total_goals),
+                            sd = sd(men$total_goals))) +
+  ggtitle("Goals Scored (Mens)") +
+  xlab("Goals Scored") +
+  ylab("Frequency")
+
+#Alternatively we can use QQ plots
+
+ggplot(men, aes(sample = total_goals)) +
+  stat_qq() +
+  geom_qq_line(color = "red")
+```
+
+```{r}
+#For women
+
+womens_plot <- ggplot(women, aes(total_goals)) +
+  geom_histogram(aes(y = ..density..), bins = 30) + 
+  stat_function(fun = dnorm, color = "blue",
+                args = list(mean = mean(men$total_goals),
+                            sd = sd(men$total_goals))) +
+  ggtitle("Goals Scored (Womens)") +
+  xlab("Goals Scored") +
+  ylab("Frequency")
+
+#QQ plot
+
+ggplot(women, aes(sample = total_goals)) +
+  stat_qq() +
+  geom_qq_line(color = "red")
+```
+
+Combine the above histograms for a better comparison using the gridExtra package
+
+```{r}
+grid.arrange(mens_plot, womens_plot, ncol = 2)
+```
+
+The histograms and QQ plots show that both the men's and women's data are not normally distributed. We therefore use the Mann Whitney test of two groups, since the normality assumption of a t-test has not being met.
+
+
+```{r}
+test_results <- wilcox.test(
+  x = men$total_goals,
+  y = women$total_goals,
+  alternative = "greater"
+)
+
+test_results
+```
+
+Create a data frame to hold the p-value from above test, and indicate whether we reject or fail to reject the null hypothesis
+
+```{r}
+p_val <- round(test_results$p.value,2)
+result <- if_else(p_val < 0.10, "Reject", "Fail to reject")
+
+results_df <- tibble(p_val, result)
+results_df
+```
+
+**Interpetation**
+
+The test yields a p-value = 0.99, which is greater than 0.10. We fail to reject the null hypothesis and conclude that the mean number of goals scored in women's international soccer matches is the same as men's soccer matches at a 0.90 significance level.
+
+
+
+
+
+
+
+
